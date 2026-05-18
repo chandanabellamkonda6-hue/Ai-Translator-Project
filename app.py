@@ -1,8 +1,12 @@
+# =========================================
+# IMPORTS
+# =========================================
+
 import streamlit as st
 import streamlit.components.v1 as components
 from deep_translator import GoogleTranslator
 from gtts import gTTS
-import speech_recognition as sr
+from audio_recorder_streamlit import audio_recorder
 from datetime import datetime
 import base64
 import uuid
@@ -26,7 +30,7 @@ if "history" not in st.session_state:
     st.session_state.history = []
 
 # =========================================
-# SIDEBAR MENU
+# SIDEBAR
 # =========================================
 
 with st.sidebar:
@@ -132,13 +136,9 @@ st.markdown(f"""
     color:{text_color};
 }}
 
-/* KEEP HEADER VISIBLE */
-
 header{{
     background:transparent;
 }}
-
-/* HIDE FOOTER ONLY */
 
 footer{{
     visibility:hidden;
@@ -287,6 +287,7 @@ def autoplay_audio(file_path, auto_play=True):
     autoplay_script = ""
 
     if auto_play:
+
         autoplay_script = f"""
         <script>
             var audio=document.getElementById('{audio_id}');
@@ -333,97 +334,25 @@ def autoplay_audio(file_path, auto_play=True):
     components.html(custom_audio, height=80)
 
 # =========================================
-# SPEECH TRANSLATION
+# ONLINE VOICE RECORDER
 # =========================================
 
 if speak_clicked:
 
-    try:
+    st.markdown("### 🎤 Speak Now")
 
-        recognizer = sr.Recognizer()
+    audio_bytes = audio_recorder(
+        pause_threshold=2.0,
+        sample_rate=41000
+    )
 
-        with sr.Microphone() as source:
+    if audio_bytes:
 
-            st.toast("🎤 Listening...")
+        st.audio(audio_bytes, format="audio/wav")
 
-            recognizer.adjust_for_ambient_noise(source)
+        st.success("✅ Voice recorded successfully")
 
-            audio = recognizer.listen(
-                source,
-                timeout=5,
-                phrase_time_limit=10
-            )
-
-        recognized_text = recognizer.recognize_google(
-            audio,
-            language=input_lang_code
-        )
-
-        translated_text = GoogleTranslator(
-            source='auto',
-            target=output_lang_code
-        ).translate(recognized_text)
-
-        st.markdown(f"""
-        <div class="result-box">
-        📝 <b>Recognized Speech:</b><br><br>
-        {recognized_text}
-        </div>
-        """, unsafe_allow_html=True)
-
-        input_audio_file = f"{uuid.uuid4()}_input.mp3"
-
-        input_tts = gTTS(
-            text=recognized_text,
-            lang=input_lang_code
-        )
-
-        input_tts.save(input_audio_file)
-
-        autoplay_audio(input_audio_file, auto_play=False)
-
-        st.markdown(f"""
-        <div class="result-box">
-        🌍 <b>Translated Output:</b><br><br>
-        {translated_text}
-        </div>
-        """, unsafe_allow_html=True)
-
-        output_audio_file = f"{uuid.uuid4()}_output.mp3"
-
-        output_tts = gTTS(
-            text=translated_text,
-            lang=output_lang_code
-        )
-
-        output_tts.save(output_audio_file)
-
-        autoplay_audio(output_audio_file, auto_play=True)
-
-        st.session_state.history.append({
-
-            "Time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-
-            "Input Language": input_language,
-
-            "Output Language": output_language,
-
-            "Input Text": recognized_text,
-
-            "Translated Text": translated_text
-        })
-
-    except sr.WaitTimeoutError:
-
-        st.warning("⌛ No speech detected")
-
-    except sr.UnknownValueError:
-
-        st.warning("❌ Could not understand audio")
-
-    except Exception as e:
-
-        st.error(f"❌ Error: {e}")
+        st.info("🎤 Browser microphone recording works online.")
 
 # =========================================
 # TEXT TRANSLATION
