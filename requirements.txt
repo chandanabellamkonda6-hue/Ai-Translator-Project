@@ -1,0 +1,10 @@
+streamlit
+deep-translator
+gtts
+SpeechRecognition
+easyocr
+pillow
+numpy
+opencv-python-headless
+torch
+torchvision
