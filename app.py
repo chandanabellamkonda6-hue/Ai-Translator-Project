@@ -9,9 +9,6 @@ from gtts import gTTS
 from audio_recorder_streamlit import audio_recorder
 from datetime import datetime
 import whisper
-import os
-
-os.environ["PATH"] += os.pathsep + r"C:\ffmpeg\bin"
 import tempfile
 import uuid
 import base64
