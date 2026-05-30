@@ -1,11 +1,9 @@
 streamlit
 deep-translator
 gtts
-SpeechRecognition
-easyocr
-pillow
-numpy
-opencv-python-headless
+audio-recorder-streamlit
+openai-whisper
+ffmpeg-python
 torch
 torchvision
-audio-recorder-streamlit
+numpy

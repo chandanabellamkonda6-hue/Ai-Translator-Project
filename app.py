@@ -8,8 +8,18 @@ from deep_translator import GoogleTranslator
 from gtts import gTTS
 from audio_recorder_streamlit import audio_recorder
 from datetime import datetime
-import base64
+import whisper
+import os
+
+os.environ["PATH"] += os.pathsep + r"C:\ffmpeg\bin"
+import tempfile
 import uuid
+import base64
+# =========================================
+# LOAD WHISPER MODEL
+# =========================================
+
+model = whisper.load_model("base")
 
 # =========================================
 # PAGE CONFIG
@@ -30,7 +40,7 @@ if "history" not in st.session_state:
     st.session_state.history = []
 
 # =========================================
-# SIDEBAR
+# SIDEBAR MENU
 # =========================================
 
 with st.sidebar:
@@ -228,7 +238,7 @@ languages = {
 # TOP CONTROLS
 # =========================================
 
-top1, top2, top3 = st.columns([4,2,4])
+top1, top2 = st.columns(2)
 
 with top1:
 
@@ -238,12 +248,6 @@ with top1:
     )
 
 with top2:
-
-    st.markdown("<br>", unsafe_allow_html=True)
-
-    speak_clicked = st.button("🎙 Speak & Translate")
-
-with top3:
 
     output_language = st.selectbox(
         "🔊 Output Language",
@@ -334,25 +338,99 @@ def autoplay_audio(file_path, auto_play=True):
     components.html(custom_audio, height=80)
 
 # =========================================
-# ONLINE VOICE RECORDER
+# ONLINE VOICE TRANSLATION
 # =========================================
 
-if speak_clicked:
+st.markdown("## 🎤 Speak & Translate")
 
-    st.markdown("### 🎤 Speak Now")
+audio_bytes = audio_recorder(
+    text="",
+    recording_color="#ff4b4b",
+    neutral_color="#2563eb",
+    icon_name="microphone",
+    icon_size="3x",
+    pause_threshold=3.0,
+    sample_rate=44100
+)
 
-    audio_bytes = audio_recorder(
-        pause_threshold=2.0,
-        sample_rate=41000
-    )
+if audio_bytes:
 
-    if audio_bytes:
+    st.success("✅ Audio Recorded")
 
-        st.audio(audio_bytes, format="audio/wav")
+    st.audio(audio_bytes, format="audio/wav")
 
-        st.success("✅ Voice recorded successfully")
+    try:
 
-        st.info("🎤 Browser microphone recording works online.")
+        # SAVE AUDIO
+
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as tmp_file:
+
+            tmp_file.write(audio_bytes)
+
+            temp_audio_path = tmp_file.name
+
+        # WHISPER SPEECH TO TEXT
+
+        result = model.transcribe(temp_audio_path)
+
+        recognized_text = result["text"]
+
+        # SHOW RECOGNIZED TEXT
+
+        st.markdown(f"""
+        <div class="result-box">
+        📝 <b>Recognized Speech:</b><br><br>
+        {recognized_text}
+        </div>
+        """, unsafe_allow_html=True)
+
+        # TRANSLATE
+
+        translated_text = GoogleTranslator(
+            source='auto',
+            target=output_lang_code
+        ).translate(recognized_text)
+
+        # SHOW TRANSLATED TEXT
+
+        st.markdown(f"""
+        <div class="result-box">
+        🌍 <b>Translated Output:</b><br><br>
+        {translated_text}
+        </div>
+        """, unsafe_allow_html=True)
+
+        # AUDIO OUTPUT
+
+        output_audio_file = f"{uuid.uuid4()}_output.mp3"
+
+        output_tts = gTTS(
+            text=translated_text,
+            lang=output_lang_code
+        )
+
+        output_tts.save(output_audio_file)
+
+        autoplay_audio(output_audio_file, auto_play=True)
+
+        # SAVE HISTORY
+
+        st.session_state.history.append({
+
+            "Time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+
+            "Input Language": input_language,
+
+            "Output Language": output_language,
+
+            "Input Text": recognized_text,
+
+            "Translated Text": translated_text
+        })
+
+    except Exception as e:
+
+        st.error(f"❌ Voice Translation Error: {e}")
 
 # =========================================
 # TEXT TRANSLATION
@@ -379,17 +457,6 @@ if translate_clicked:
             {typed_text}
             </div>
             """, unsafe_allow_html=True)
-
-            input_audio_file = f"{uuid.uuid4()}_input.mp3"
-
-            input_tts = gTTS(
-                text=typed_text,
-                lang=input_lang_code
-            )
-
-            input_tts.save(input_audio_file)
-
-            autoplay_audio(input_audio_file, auto_play=False)
 
             st.markdown(f"""
             <div class="result-box">
