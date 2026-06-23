@@ -12,18 +12,25 @@ import whisper
 import tempfile
 import uuid
 import base64
+import os
+import shutil
+os.environ["PATH"] += os.pathsep + r"C:\ffmpeg\bin"
 # =========================================
 # LOAD WHISPER MODEL
 # =========================================
 
-model = whisper.load_model("base")
+@st.cache_resource
+def load_model():
+    return whisper.load_model("small")
+
+model = load_model()
 
 # =========================================
 # PAGE CONFIG
 # =========================================
 
 st.set_page_config(
-    page_title="AI Multilingual Voice Translator",
+    page_title="Language Translator for Rural Communication",
     page_icon="🌍",
     layout="wide",
     initial_sidebar_state="collapsed"
@@ -212,7 +219,7 @@ div.stButton > button:first-child:hover {{
 
 st.markdown(f"""
 <div class="title">
-🌍 AI MULTILINGUAL VOICE TRANSLATOR
+🌍 Language Translator for Rural Communication
 </div>
 """, unsafe_allow_html=True)
 
@@ -230,7 +237,16 @@ languages = {
     "Urdu": "ur",
     "Bengali": "bn"
 }
-
+gtts_langs = {
+    "English": "en",
+    "Telugu": "te",
+    "Hindi": "hi",
+    "Tamil": "ta",
+    "Kannada": "kn",
+    "Malayalam": "ml",
+    "Urdu": "ur",
+    "Bengali": "bn"
+}
 # =========================================
 # TOP CONTROLS
 # =========================================
@@ -346,13 +362,14 @@ audio_bytes = audio_recorder(
     neutral_color="#2563eb",
     icon_name="microphone",
     icon_size="3x",
-    pause_threshold=3.0,
-    sample_rate=44100
+    pause_threshold=5.0,
+    sample_rate=16000
 )
 
 if audio_bytes:
 
     st.success("✅ Audio Recorded")
+
 
     st.audio(audio_bytes, format="audio/wav")
 
@@ -366,9 +383,25 @@ if audio_bytes:
 
             temp_audio_path = tmp_file.name
 
+
+
         # WHISPER SPEECH TO TEXT
 
-        result = model.transcribe(temp_audio_path)
+        with st.spinner("🎤 Translating..."):
+
+            try:
+
+                result = model.transcribe(
+                    temp_audio_path,
+                    language=input_lang_code,
+                    fp16=False
+                )
+
+            except Exception as whisper_error:
+
+                st.error(f"Whisper Error: {whisper_error}")
+
+                st.stop()
 
         recognized_text = result["text"]
 
@@ -403,7 +436,7 @@ if audio_bytes:
 
         output_tts = gTTS(
             text=translated_text,
-            lang=output_lang_code
+            lang=gtts_langs[output_language]
         )
 
         output_tts.save(output_audio_file)
@@ -466,7 +499,7 @@ if translate_clicked:
 
             output_tts = gTTS(
                 text=translated_text,
-                lang=output_lang_code
+                lang=gtts_langs[output_language]
             )
 
             output_tts.save(output_audio_file)
